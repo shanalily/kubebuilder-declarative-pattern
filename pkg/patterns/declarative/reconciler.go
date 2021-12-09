@@ -237,7 +237,10 @@ func (r *Reconciler) reconcileExists(ctx context.Context, name types.NamespacedN
 	}
 
 	ns := ""
-	if !r.options.preserveNamespace {
+	if r.options.namespace {
+		// ns = r.options.namespace
+		ns = instance.GetNamespace()
+	} else if !r.options.preserveNamespace {
 		ns = name.Namespace
 	}
 

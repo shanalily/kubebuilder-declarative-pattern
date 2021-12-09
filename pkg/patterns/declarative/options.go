@@ -44,6 +44,7 @@ type reconcilerParams struct {
 
 	prune             bool
 	preserveNamespace bool
+	namespace         bool
 	kustomize         bool
 	validate          bool
 	metrics           bool
@@ -142,6 +143,15 @@ func WithStatus(status Status) reconcilerOption {
 func WithPreserveNamespace() reconcilerOption {
 	return func(p reconcilerParams) reconcilerParams {
 		p.preserveNamespace = true
+		return p
+	}
+}
+
+// WithNamespace allosw setting the namespaces for all objects in the deployment manifest
+// instead of matching the namespace of the DeclarativeObject
+func WithNamespace() reconcilerOption {
+	return func(p reconcilerParams) reconcilerParams {
+		p.namespace = true
 		return p
 	}
 }
