@@ -18,6 +18,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+IMG=shanalily/kubebuilder-declarative-pattern
+
 REPO_ROOT=$(dirname "${BASH_SOURCE}")/../..
 cd "${REPO_ROOT}/hack"
 
