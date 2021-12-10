@@ -147,9 +147,9 @@ func WithPreserveNamespace() reconcilerOption {
 	}
 }
 
-// WithNamespace allosw setting the namespaces for all objects in the deployment manifest
+// WithObjectNamespace allosw setting the namespaces for all objects in the deployment manifest
 // instead of matching the namespace of the DeclarativeObject
-func WithNamespace() reconcilerOption {
+func WithObjectNamespace() reconcilerOption {
 	return func(p reconcilerParams) reconcilerParams {
 		p.namespace = true
 		return p

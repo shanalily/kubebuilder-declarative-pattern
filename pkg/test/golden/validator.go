@@ -227,6 +227,14 @@ func (v *validator) Validate(r declarative.Reconciler) {
 			t.Errorf("error building deployment objects: %v", err)
 			continue
 		}
+		///
+		m, err := objects.JSONManifest()
+		if err != nil {
+			// log.Error(err, "creating final manifest")
+			t.Errorf("error creating manifest: %v", err)
+		}
+		t.Errorf(m)
+		//
 
 		var actualYAML string
 		{

@@ -1,6 +1,7 @@
 package applier
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -26,7 +27,7 @@ func NewDirectApplier() *DirectApplier {
 	return &DirectApplier{}
 }
 
-func (d *DirectApplier) Apply(ctx context.Context, opt ApplierOptions) error {
+func (d *DirectApplier) ApplyOld(ctx context.Context, opt ApplierOptions) error {
 	ioStreams := genericclioptions.IOStreams{
 		In:     os.Stdin,
 		Out:    os.Stdout,
@@ -40,14 +41,16 @@ func (d *DirectApplier) Apply(ctx context.Context, opt ApplierOptions) error {
 	}
 	b := resource.NewBuilder(restClientGetter)
 
-	if opt.Validate {
-		// This potentially causes redundant work, but validation isn't the common path
-		v, err := cmdutil.NewFactory(&genericclioptions.ConfigFlags{}).Validator(true)
-		if err != nil {
-			return err
-		}
-		b.Schema(v)
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	if opt.Namespace != "" {
+		kubeConfigFlags.Namespace = &opt.Namespace
 	}
+	// Validation potentially causes redundant work, but validation isn't the common path
+	v, err := cmdutil.NewFactory(kubeConfigFlags).Validator(opt.Validate)
+	if err != nil {
+		return err
+	}
+	b.Schema(v)
 
 	res := b.Unstructured().Stream(ioReader, "manifestString").Do()
 	infos, err := res.Infos()
@@ -106,4 +109,49 @@ func (s *staticRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 		return nil, fmt.Errorf("RESTMapper not set")
 	}
 	return s.RESTMapper, nil
+}
+
+func (d *DirectApplier) Apply(ctx context.Context, opt ApplierOptions) error {
+	stdio := bytes.NewBuffer(nil)
+	errio := bytes.NewBuffer(nil)
+	streams := genericclioptions.IOStreams{In: stdio, Out: stdio, ErrOut: errio}
+
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	if opt.Namespace != "" {
+		kubeConfigFlags.Namespace = &opt.Namespace
+	}
+	// Validation potentially causes redundant work, but validation isn't the common path
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+	factory := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+
+	cmd := apply.NewCmdApply("kubectl", factory, streams)
+	err := cmd.Flags().Set("validate", "false")
+	if err != nil {
+		return err
+	}
+	opts := apply.NewApplyOptions(streams)
+
+	ioReader := strings.NewReader(opt.Manifest)
+
+	if err := opts.Complete(factory, cmd); err != nil {
+		return fmt.Errorf("failed to complete apply options: %+v", err)
+	}
+
+	v := factory.NewBuilder().
+		Unstructured().
+		Schema(opts.Validator).
+		ContinueOnError().
+		NamespaceParam(opts.Namespace).DefaultNamespace().
+		Flatten().
+		Stream(ioReader, "manifestString").
+		Do()
+
+	_ = v.Visit(func(info *resource.Info, err error) error {
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	return opts.Run()
 }

@@ -12,7 +12,8 @@ type Applier interface {
 }
 
 type ApplierOptions struct {
-	Manifest string
+	Manifest  string
+	Kustomize string
 
 	RESTConfig *rest.Config
 	RESTMapper meta.RESTMapper
