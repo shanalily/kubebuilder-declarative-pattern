@@ -18,11 +18,13 @@ package loaders
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
@@ -237,6 +239,16 @@ func TestFSRepository_LoadManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
+	dataDir := "/tmp/data"
+	err = fSys.MkdirAll(dataDir)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	symLink := filepath.Join(baseDir, "..data")
+	err = os.Symlink(dataDir, symLink)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
 
 	defer fSys.RemoveAll(baseDir)
 
@@ -282,4 +294,19 @@ func TestFSRepository_LoadManifest(t *testing.T) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("expected %+v but got %+v", expected, actual)
 	}
+
+	symLink = filepath.Join(baseDir, "..dataa")
+	err = os.Symlink(dataDir, symLink)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+
+	actual, err = fs.LoadManifest(ctx, "nginx", "1.2.3")
+	assert.Error(t, err)
+	assert.Equal(
+		t,
+		"error reading file /tmp/packages/nginx/1.2.3/..dataa: read /tmp/packages/nginx/1.2.3/..dataa: is a directory",
+		err.Error(),
+	)
+
 }

@@ -19,6 +19,7 @@ package loaders
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,7 +131,7 @@ func (r *FSRepository) LoadManifest(ctx context.Context, packageName string, id 
 	}
 	result := make(map[string]string)
 	for _, p := range filesPath {
-		if p.IsDir() {
+		if p.IsDir() || (p.Type() == fs.ModeSymlink && p.Name() == "..data") {
 			log.V(2).Info("skipping directory", "directory", p.Name())
 			continue
 		}
